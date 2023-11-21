@@ -7,7 +7,7 @@
 
 import Foundation
 import RxSwift
-
+ 
 protocol MovieModel {
     func getUpcoming(page : Int, onSuccess : @escaping([MovieVO]) -> Void, onFailure: @escaping (Error) -> Void)
     

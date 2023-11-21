@@ -35,6 +35,7 @@ struct MovieModelImpl : MovieModel {
                 result.append(nowPlayingMovies.first ?? MovieVO())
                 result.append(nowPlayingMovies.last ?? MovieVO())
                 self.mMovieDao.saveMovies(movies: result, for: MOVIE_TYPE_NOW_PLAYING)
+                onSuccess(result)
             }, onError: {
                 error in
                 onFailure(error)
@@ -53,6 +54,7 @@ struct MovieModelImpl : MovieModel {
                 result.append(popularMovies.first ?? MovieVO())
                 result.append(popularMovies.last ?? MovieVO())
                 self.mMovieDao.saveMovies(movies: result, for: MOVIE_TYPE_POPULAR)
+                onSuccess(result)
             }, onError: {
                  error in
                 onFailure(error)

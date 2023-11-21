@@ -9,66 +9,76 @@ import Foundation
 import Combine
 import RxSwift
 
-class ContentViewModel : ObservableObject{
-    // data model
-    let mMovieModel : MovieModel = MovieModelImpl.shared
+enum UIState {
+    case idle
+    case loading
+    case error(String)
+}
 
-    // state variables
-    @Published var mUpComing : [MovieVO]? = nil
-    @Published var mPopularMovies : [MovieVO]? = nil
+class ContentViewModel: ObservableObject {
+    private let mMovieModel: MovieModel
+    @Published var mUpComing: [MovieVO]? = nil
+    @Published var mPopularMovies: [MovieVO]? = nil
+    
+    // UI states
+    
+    @Published var uiState: UIState = .idle
     
     private let disposeBag = DisposeBag()
     
-    init(){
+    init(movieModel: MovieModel) {
+        self.mMovieModel = movieModel
         requestData()
     }
     
-    func requestData(){
-        //now upcoing movies
-        mMovieModel.getUpcoming(page: 1) { _ in
+    func requestData() {
+            uiState = .loading
             
-        } onFailure: { error in
+            mMovieModel.getUpcoming(page: 1) { [weak self] _ in
+                self?.uiState = .idle
+            } onFailure: { [weak self] error in
+                self?.uiState = .error(error.localizedDescription)
+            }
             
+            mMovieModel.getPopularMovies(page: 1) { [weak self] _ in
+                self?.uiState = .idle
+            } onFailure: { [weak self] error in
+                self?.uiState = .error(error.localizedDescription)
+            }
+            
+            self.mUpComing = mMovieModel.getNowPlayingMoviesFromDatabase()
+            self.mPopularMovies = mMovieModel.getPopularMoviesFromDatabase()
+            
+            mMovieModel.getUpComingMoviesObservable()
+                .observe(on: MainScheduler.instance)
+                .subscribe(onNext: { [weak self] mUpComing in
+                    self?.mUpComing = mUpComing
+                    self?.uiState = .idle
+                })
+                .disposed(by: disposeBag)
+            
+            mMovieModel.getPopularMoviesFObservable()
+                .observe(on: MainScheduler.instance)
+                .subscribe(onNext: { [weak self] popularMovies in
+                    self?.mPopularMovies = popularMovies
+                    self?.uiState = .idle
+                })
+                .disposed(by: disposeBag)
         }
-
-        
-        //popular movies
-        mMovieModel.getPopularMovies(page: 1) { _ in
-           
-        } onFailure: { error in
-        }
-      
-        
-        //database
-        self.mUpComing = mMovieModel.getNowPlayingMoviesFromDatabase()
-        self.mPopularMovies = mMovieModel.getPopularMoviesFromDatabase()
-        
-        
-        //get data from database
-        mMovieModel.getUpComingMoviesObservable()
-            .observe(on: MainScheduler.instance)
-            .subscribe(onNext: { [weak self] (mUpComing) in
-                guard let self = self  else { return }
-                self.mUpComing = mUpComing
-            })
-            .disposed(by: disposeBag)
         
     
-        mMovieModel.getPopularMoviesFObservable()
-            .observe(on: MainScheduler.instance)
-            .subscribe(onNext: {  [weak self](popularMovies) in
-                guard let self = self  else { return }
-                self.mPopularMovies = popularMovies
-            })
-            .disposed(by: disposeBag)
-        
-
-        
-    }
-   
     func setFavorite(movieId: Int){
-        mMovieModel.checkFavorite(movieId: movieId  , isSelected: false, completion: {_ in
-           // self.mMovieVO = self.mMovieModel.getMovieByIdFromDatabase(id: self.movieId ?? 0 )
-        })
-    }
+            mMovieModel.checkFavorite(movieId: movieId  , isSelected: false, completion: {_ in
+                // self.mMovieVO = self.mMovieModel.getMovieByIdFromDatabase(id: self.movieId ?? 0 )
+            })
+        }
+    
+    
+   
+    
+    func retry() {
+            uiState = .loading
+            requestData()
+        }
 }
+
